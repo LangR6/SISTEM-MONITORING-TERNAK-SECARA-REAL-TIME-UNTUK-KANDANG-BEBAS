@@ -1,11 +1,244 @@
 @import 'tailwindcss';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.js';
+@source '../../app/**/*.php';
 @source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
 
+/* Token desain dari Figma */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+
+    --color-navy-950: #071a2f;
+    --color-navy-900: #0b223d;
+    --color-navy-800: #123253;
+    --color-navy-700: #1b466e;
+
+    --color-orange: #f28a32;
+    --color-orange-dark: #df7721;
+    --color-orange-soft: #fff3e8;
+
+    --color-inside: #20a66a;
+    --color-inside-soft: #eaf8f1;
+    --color-inside-ink: #178354;
+    --color-outside: #e05252;
+    --color-outside-soft: #fff0f0;
+    --color-outside-ink: #c83d3d;
+    --color-offline: #8a99a8;
+    --color-offline-soft: #f0f3f5;
+    --color-offline-ink: #6d7c88;
+
+    --color-ink: #172b3e;
+    --color-muted: #6f8091;
+    --color-line: #e5ebf0;
+    --color-canvas: #f4f7f9;
+
+    --radius-card: 13px;
+    --shadow-card: 0 5px 18px rgba(21, 48, 72, 0.035);
+}
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        min-width: 320px;
+    }
+
+    button {
+        cursor: pointer;
+    }
+
+    button:disabled {
+        cursor: not-allowed;
+    }
+
+    :is(button, a, input):focus-visible {
+        outline: 3px solid rgb(242 138 50 / 0.3);
+        outline-offset: 2px;
+    }
+
+    /*
+     * Warna status. Elemen yang memiliki data-status="inside|outside|offline|total"
+     * menyediakan variabel --tone* untuk anak-anaknya, sehingga satu set kelas
+     * (bg-(--tone-soft), text-(--tone)) cukup untuk semua status, termasuk saat
+     * JavaScript mengganti status pada panel detail.
+     */
+    [data-status='inside'] {
+        --tone: var(--color-inside);
+        --tone-soft: var(--color-inside-soft);
+        --tone-ink: var(--color-inside-ink);
+    }
+
+    [data-status='outside'] {
+        --tone: var(--color-outside);
+        --tone-soft: var(--color-outside-soft);
+        --tone-ink: var(--color-outside-ink);
+    }
+
+    [data-status='offline'] {
+        --tone: var(--color-offline);
+        --tone-soft: var(--color-offline-soft);
+        --tone-ink: var(--color-offline-ink);
+    }
+
+    [data-status='total'] {
+        --tone: var(--color-navy-700);
+        --tone-soft: #edf3f8;
+        --tone-ink: var(--color-navy-700);
+    }
+}
+
+/* Peta ilustrasi (kanvas desain). Dipisah karena memakai pseudo-element & transform khusus. */
+@layer components {
+    .map-canvas {
+        position: relative;
+        overflow: hidden;
+        border-block: 1px solid var(--color-line);
+        background: #eaf0e8;
+        user-select: none;
+    }
+
+    .map-canvas:fullscreen {
+        height: 100vh !important;
+        border: 0;
+    }
+
+    .map-stage {
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(rgb(255 255 255 / 0.18) 1px, transparent 1px),
+            linear-gradient(90deg, rgb(255 255 255 / 0.18) 1px, transparent 1px);
+        background-size: 36px 36px;
+        transform: scale(var(--zoom, 1));
+        transition: transform 0.2s ease;
+    }
+
+    .map-stage::before,
+    .map-stage::after {
+        content: '';
+        position: absolute;
+        border-radius: 50%;
+        background: #d7e3d1;
+        opacity: 0.65;
+    }
+
+    .map-stage::before {
+        left: -5%;
+        top: -18%;
+        width: 43%;
+        height: 53%;
+    }
+
+    .map-stage::after {
+        right: -8%;
+        bottom: -20%;
+        width: 50%;
+        height: 64%;
+    }
+
+    .map-road {
+        position: absolute;
+        z-index: 1;
+        height: 11px;
+        border: 1px solid #dddcd1;
+        background: #fffdf8;
+        box-shadow: 0 0 0 3px rgb(255 255 255 / 0.48);
+        transform-origin: left center;
+    }
+
+    .geofence-shape {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+
+    .geofence-shape polygon {
+        fill: rgb(32 166 106 / 0.18);
+        stroke: var(--color-inside);
+        stroke-width: 1.5;
+        stroke-dasharray: 5 3;
+        vector-effect: non-scaling-stroke;
+    }
+
+    /* Marker: pin berbentuk tetesan + label ID */
+    .map-marker {
+        position: absolute;
+        z-index: 8;
+        display: flex;
+        align-items: center;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        transform: translate(-50%, -100%);
+    }
+
+    .map-marker:hover,
+    .map-marker[data-selected='true'] {
+        z-index: 12;
+    }
+
+    .marker-pin {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        color: #fff;
+        background: var(--tone);
+        border: 3px solid #fff;
+        border-radius: 50% 50% 50% 4px;
+        box-shadow: 0 3px 9px rgb(21 48 72 / 0.28);
+        transform: rotate(-45deg);
+        transition: transform 0.18s ease;
+    }
+
+    .marker-pin > svg {
+        transform: rotate(45deg);
+    }
+
+    button.map-marker:not(:disabled):hover .marker-pin,
+    .map-marker[data-selected='true'] .marker-pin {
+        transform: rotate(-45deg) scale(1.16);
+    }
+
+    .marker-label {
+        display: none;
+        margin-left: -3px;
+        padding: 5px 8px 5px 10px;
+        color: var(--color-navy-900);
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+        background: rgb(255 255 255 / 0.94);
+        border: 1px solid var(--color-line);
+        border-radius: 0 6px 6px 0;
+        box-shadow: 0 2px 6px rgb(21 48 72 / 0.1);
+    }
+
+    /* Label tampil untuk ternak bermasalah, saat hover, dan saat dipilih (menghindari peta penuh teks). */
+    .map-marker:not([data-status='inside']) .marker-label,
+    .map-marker:hover .marker-label,
+    .map-marker[data-selected='true'] .marker-label {
+        display: block;
+    }
+
+    .map-marker[data-selected='true'] .marker-label {
+        color: #fff;
+        background: var(--color-navy-900);
+        border-color: var(--color-navy-900);
+    }
+
+    /* Layar kecil: label hanya untuk ternak yang dipilih (sesuai desain), agar peta tidak penuh teks. */
+    @media (max-width: 440px) {
+        .map-marker:not([data-selected='true']) .marker-label {
+            display: none !important;
+        }
+    }
 }
