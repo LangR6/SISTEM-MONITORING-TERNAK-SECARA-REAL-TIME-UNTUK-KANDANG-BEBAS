@@ -10,7 +10,7 @@
         ? [
             'name' => $authenticatedUser->name,
             'email' => $authenticatedUser->email,
-            'role' => $authenticatedUser->role ?? 'Pengguna',
+            'role' => $authenticatedUser->role ?? 'Peternak',
         ]
         : \App\Support\DemoUser::current();
 
