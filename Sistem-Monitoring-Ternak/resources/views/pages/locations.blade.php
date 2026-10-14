@@ -41,7 +41,7 @@
              ========================================================= --}}
 
         <div
-            class="grid grid-cols-1 items-stretch gap-[18px] lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.68fr)] lg:grid-rows-[692px]"
+            class="grid grid-cols-1 items-stretch gap-[18px] lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.68fr)] lg:grid-rows-[720px]"
         >
 
             {{-- =====================================================
@@ -90,7 +90,7 @@
 
                 {{-- MAP --}}
 
-                <div class="min-h-0 flex-1">
+                <div class="min-h-0 shrink-0">
 
                     <x-map
                         :animals="$animals"
@@ -101,72 +101,21 @@
 
                 </div>
 
-            </article>
 
+                {{-- INFORMASI GPS (di dalam kotak peta) --}}
 
-            {{-- =====================================================
-                 DAFTAR TERNAK
-                 ===================================================== --}}
-
-            <article
-                class="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-line bg-white shadow-card"
-            >
-
-                <div
-                    class="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-line px-[18px] py-4"
-                >
-
-                    <div>
-
-                        <h2
-                            class="m-0 text-sm font-extrabold text-navy-900"
-                        >
-                            Daftar Ternak
-                        </h2>
-
-                        <p
-                            class="mt-[5px] text-[11px] text-muted"
-                        >
-                            {{ $summary['total'] }} ternak terdaftar
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div
-                    class="min-h-0 flex-1 overflow-hidden"
-                >
-
-                    <x-animal-list
-                        :animals="$animals"
-                        :selected="$selected['id']"
-                    />
-
-                </div>
-
-            </article>
-
-        </div>
-
-
-        {{-- =========================================================
-             DETAIL TERNAK
-             ========================================================= --}}
-
-        <article
-            class="overflow-hidden rounded-card border border-line bg-white shadow-card"
+        <div
+            class="shrink-0 border-t border-line"
             data-detail
             data-status="{{ $selected['status']->value }}"
         >
 
-            <div class="px-5 py-[18px]">
+            <div class="px-5 py-3.5">
 
                 {{-- HEADER --}}
 
                 <div
-                    class="mb-4 flex items-center justify-between gap-3"
+                    class="mb-2.5 flex items-center justify-between gap-3"
                 >
 
                     <div>
@@ -282,7 +231,7 @@
                      ================================================= --}}
 
                 <dl
-                    class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                    class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4"
                 >
 
                     {{-- LATITUDE --}}
@@ -375,7 +324,57 @@
 
             </div>
 
-        </article>
+        </div>
+
+            </article>
+
+
+            {{-- =====================================================
+                 DAFTAR TERNAK
+                 ===================================================== --}}
+
+            <article
+                class="flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-line bg-white shadow-card"
+            >
+
+                <div
+                    class="flex min-h-[72px] shrink-0 items-center justify-between gap-4 border-b border-line px-[18px] py-4"
+                >
+
+                    <div>
+
+                        <h2
+                            class="m-0 text-sm font-extrabold text-navy-900"
+                        >
+                            Daftar Ternak
+                        </h2>
+
+                        <p
+                            class="mt-[5px] text-[11px] text-muted"
+                        >
+                            {{ $summary['total'] }} ternak terdaftar
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="min-h-0 flex-1 overflow-hidden"
+                >
+
+                    <x-animal-list
+                        :animals="$animals"
+                        :selected="$selected['id']"
+                    />
+
+                </div>
+
+            </article>
+
+        </div>
+
 
     </section>
 

@@ -9,9 +9,8 @@
     <title>@yield('title', 'Masuk') · Monitoring Ternak</title>
 
     {{-- Favicon PBL Rounded --}}
-    <link class="rounded "rel="icon" href="{{ asset('images/pbl.png') }}" type="image/svg+xml">
-    <link rel="shortcut icon" href="{{ asset('images/pbl.png') }}" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="{{ asset('images/pbl.png') }}">
+    <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+    <link rel="alternate icon" href="{{ asset('favicon.ico') }}" sizes="any">
 
     {{-- Font --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">

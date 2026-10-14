@@ -79,9 +79,44 @@
         {{-- ===================================================== --}}
 
         <div
-            id="geofence-map"
-            class="h-[430px] w-full max-[440px]:h-[375px] md:h-[540px]"
-        ></div>
+            data-geofence-map-wrap
+            class="relative isolate h-[430px] w-full max-[440px]:h-[375px] md:h-[540px]"
+        >
+
+            <div
+                id="geofence-map"
+                class="h-full w-full"
+            ></div>
+
+            {{-- KONTROL PETA (sama dengan halaman Lokasi Ternak) --}}
+            <div
+                data-map-controls
+                class="absolute right-3 top-3 flex flex-col overflow-hidden rounded-lg border border-[#d9e1e5] bg-white shadow-md"
+                style="z-index:500;"
+            >
+            <button type="button" data-map-action="zoom-in"
+                aria-label="Perbesar peta"
+                class="grid size-9 place-items-center border-b border-[#e5eaee] bg-white text-[#476175] hover:bg-[#f7f9fb]">
+                <x-icon name="plus" :size="17" />
+            </button>
+            <button type="button" data-map-action="zoom-out"
+                aria-label="Perkecil peta"
+                class="grid size-9 place-items-center border-b border-[#e5eaee] bg-white text-[#476175] hover:bg-[#f7f9fb]">
+                <x-icon name="minus" :size="17" />
+            </button>
+            <button type="button" data-map-action="reset"
+                aria-label="Kembalikan tampilan"
+                class="grid size-9 place-items-center border-b border-[#e5eaee] bg-white text-[#476175] hover:bg-[#f7f9fb]">
+                <x-icon name="crosshair" :size="17" />
+            </button>
+            <button type="button" data-map-action="fullscreen"
+                aria-label="Layar penuh"
+                class="grid size-9 place-items-center bg-white text-[#476175] hover:bg-[#f7f9fb]">
+                <x-icon name="expand" :size="16" />
+            </button>
+            </div>
+
+        </div>
 
 
         {{-- ===================================================== --}}
@@ -278,6 +313,16 @@
         z-index: 1;
     }
 
+    /* Sembunyikan kontrol zoom bawaan Leaflet (diganti kontrol di kanan) */
+    #geofence-map .leaflet-control-zoom {
+        display: none !important;
+    }
+
+    [data-geofence-map-wrap]:fullscreen {
+        width: 100vw;
+        height: 100vh !important;
+    }
+
     .leaflet-container {
         font-family: inherit;
     }
@@ -393,7 +438,7 @@ document.addEventListener('DOMContentLoaded', function () {
     */
 
     const map =
-        L.map(mapElement).setView(
+        L.map(mapElement, { zoomControl: false }).setView(
             defaultCenter,
             13
         );
@@ -1245,6 +1290,97 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         );
 
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | KONTROL PETA: PERBESAR, PERKECIL, TERPUSAT, LAYAR PENUH
+    |--------------------------------------------------------------------------
+    */
+
+    const mapWrap =
+        document.querySelector('[data-geofence-map-wrap]');
+
+    function mapAction(name) {
+        return mapWrap
+            ? mapWrap.querySelector('[data-map-action="' + name + '"]')
+            : null;
+    }
+
+    const zoomInBtn = mapAction('zoom-in');
+    const zoomOutBtn = mapAction('zoom-out');
+    const resetBtn = mapAction('reset');
+    const fullscreenBtn = mapAction('fullscreen');
+
+    if (zoomInBtn) {
+        zoomInBtn.addEventListener('click', function () {
+            map.zoomIn();
+        });
+    }
+
+    if (zoomOutBtn) {
+        zoomOutBtn.addEventListener('click', function () {
+            map.zoomOut();
+        });
+    }
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function () {
+
+            if (polygon && points.length >= 3) {
+
+                map.fitBounds(
+                    polygon.getBounds(),
+                    { padding: [30, 30] }
+                );
+
+            } else if (points.length > 0) {
+
+                map.fitBounds(
+                    L.latLngBounds(
+                        points.map(function (point) {
+                            return [point.lat, point.lng];
+                        })
+                    ),
+                    { padding: [30, 30], maxZoom: 18 }
+                );
+
+            } else {
+
+                map.setView(defaultCenter, 13);
+
+            }
+
+        });
+    }
+
+    if (fullscreenBtn && mapWrap) {
+        fullscreenBtn.addEventListener('click', async function () {
+
+            try {
+
+                if (!document.fullscreenElement) {
+                    await mapWrap.requestFullscreen();
+                } else {
+                    await document.exitFullscreen();
+                }
+
+            } catch (error) {
+                console.warn('Mode layar penuh tidak tersedia:', error);
+            }
+
+            setTimeout(function () {
+                map.invalidateSize(true);
+            }, 250);
+
+        });
+
+        document.addEventListener('fullscreenchange', function () {
+            setTimeout(function () {
+                map.invalidateSize(true);
+            }, 200);
+        });
     }
 
 });
