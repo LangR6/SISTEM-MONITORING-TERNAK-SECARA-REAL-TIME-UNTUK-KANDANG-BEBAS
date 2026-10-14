@@ -3,16 +3,37 @@
     use App\Enums\LivestockStatus;
     use App\Support\LivestockRepository;
 
-    $user = \App\Support\DemoUser::current();
+    // Ambil data pengguna yang sedang login
+    $authenticatedUser = auth()->user();
 
+    $user = $authenticatedUser
+        ? [
+            'name' => $authenticatedUser->name,
+            'email' => $authenticatedUser->email,
+            'role' => $authenticatedUser->role ?? 'Pengguna',
+        ]
+        : \App\Support\DemoUser::current();
+
+    // Ambil ternak yang keluar kandang atau offline
     $notificationAnimals = app(LivestockRepository::class)
         ->all()
         ->filter(function ($animal) {
-            return $animal['status'] === LivestockStatus::Outside;
+            return in_array($animal['status'], [
+                LivestockStatus::Outside,
+                LivestockStatus::Offline,
+            ], true);
         })
         ->values();
 
     $notificationCount = $notificationAnimals->count();
+
+    $outsideCount = $notificationAnimals
+        ->where('status', LivestockStatus::Outside)
+        ->count();
+
+    $offlineCount = $notificationAnimals
+        ->where('status', LivestockStatus::Offline)
+        ->count();
 @endphp
 
 <header class="sticky top-0 z-20 flex h-[72px] items-center border-b border-line bg-white/95 px-4 backdrop-blur md:h-[82px] md:px-[31px]">
@@ -54,22 +75,12 @@
             >
                 <x-icon name="bell" :size="18" />
 
-                @if ($notificationCount > 0)
-                    <span
-                        data-notification-badge
-                        class="absolute -right-[3px] -top-[4px] flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-white bg-[#e05252] px-1 text-[8px] font-extrabold leading-none text-white"
-                    >
-                        {{ $notificationCount }}
-                    </span>
-                @else
-                    <span
-                        data-notification-badge
-                        hidden
-                        class="absolute -right-[3px] -top-[4px] h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-white bg-[#e05252] px-1 text-[8px] font-extrabold leading-none text-white"
-                    >
-                        0
-                    </span>
-                @endif
+                <span
+                    data-notification-badge
+                    class="absolute -right-[3px] -top-[4px] flex h-[17px] min-w-[17px] items-center justify-center rounded-full border-2 border-white bg-[#e05252] px-1 text-[8px] font-extrabold leading-none text-white {{ $notificationCount === 0 ? 'hidden' : '' }}"
+                >
+                    {{ $notificationCount }}
+                </span>
             </button>
 
             {{-- NOTIFICATION PANEL --}}
@@ -80,87 +91,179 @@
                 aria-label="Daftar notifikasi ternak"
                 class="absolute right-0 top-[calc(100%+12px)] z-50 w-[330px] overflow-hidden rounded-[14px] border border-line bg-white shadow-[0_16px_40px_rgba(10,34,57,0.18)] sm:w-[360px]"
             >
+
+                {{-- PANEL HEADER --}}
                 <div class="flex items-center justify-between border-b border-line px-4 py-3.5">
                     <div>
                         <h2 class="m-0 text-[13px] font-extrabold text-navy-900">
                             Notifikasi
                         </h2>
+
                         <p class="mt-1 text-[10px] text-muted">
-                            Ternak yang berada di luar kandang
+                            Peringatan lokasi dan perangkat ternak
                         </p>
                     </div>
 
-                    @if ($notificationCount > 0)
-                        <span class="rounded-full bg-[#fff0ed] px-2 py-1 text-[9px] font-extrabold text-[#d94b3d]">
-                            {{ $notificationCount }} ternak
-                        </span>
-                    @endif
+                    <span class="rounded-full bg-[#fff0ed] px-2 py-1 text-[9px] font-extrabold text-[#d94b3d]">
+                        {{ $notificationCount }} peringatan
+                    </span>
                 </div>
 
-                <div class="max-h-[380px] overflow-y-auto" data-notification-list>
-                    @if ($notificationCount > 0)
-                        @foreach ($notificationAnimals as $animal)
-                            <a
-                                role="menuitem"
-                                href="{{ route('locations', ['ternak' => $animal['id']]) }}"
-                                data-notification-item
-                                data-animal-id="{{ $animal['id'] }}"
-                                class="group flex items-start gap-3 border-b border-[#edf1f4] px-4 py-3.5 no-underline transition last:border-b-0 hover:bg-[#fff8f5]"
-                            >
-                                <span class="grid size-[38px] shrink-0 place-items-center rounded-[10px] bg-[#fff0ed] text-[#e05252]">
-                                    @if ($animal['type'] === 'Kambing')
-                                        <x-icon name="goat" :size="20" />
-                                    @else
-                                        <x-icon name="cattle" :size="20" />
-                                    @endif
+                {{-- FILTER NOTIFIKASI --}}
+                <div class="border-b border-[#edf1f4] px-3 py-3">
+                    <div
+                        class="grid grid-cols-3 gap-1 rounded-[9px] bg-[#f3f6f8] p-1"
+                        role="group"
+                        aria-label="Filter notifikasi"
+                    >
+                        <button
+                            type="button"
+                            data-notification-filter="all"
+                            aria-pressed="true"
+                            class="rounded-[7px] bg-white px-2 py-2 text-[10px] font-extrabold text-navy-900 shadow-sm transition"
+                        >
+                            Semua
+                            <span class="ml-0.5">{{ $notificationCount }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            data-notification-filter="outside"
+                            aria-pressed="false"
+                            class="rounded-[7px] px-1 py-2 text-[10px] font-bold text-[#d94b3d] transition hover:bg-white"
+                        >
+                            Keluar kandang
+                            <span class="ml-0.5">{{ $outsideCount }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            data-notification-filter="offline"
+                            aria-pressed="false"
+                            class="rounded-[7px] px-1 py-2 text-[10px] font-bold text-[#687887] transition hover:bg-white"
+                        >
+                            Offline
+                            <span class="ml-0.5">{{ $offlineCount }}</span>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- NOTIFICATION LIST --}}
+                <div
+                    class="max-h-[380px] overflow-y-auto"
+                    data-notification-list
+                >
+                    @forelse ($notificationAnimals as $animal)
+                        @php
+                            $isOffline = $animal['status'] === LivestockStatus::Offline;
+
+                            $filterType = $isOffline ? 'offline' : 'outside';
+
+                            $statusLabel = $isOffline
+                                ? 'Perangkat offline'
+                                : 'Keluar kandang';
+
+                            $statusDescription = $isOffline
+                                ? 'Tidak ada pembaruan dari perangkat'
+                                : 'Terdeteksi di luar area geofence';
+
+                            $statusTextColor = $isOffline
+                                ? 'text-[#687887]'
+                                : 'text-[#e05252]';
+
+                            $statusBgColor = $isOffline
+                                ? 'bg-[#eef2f5]'
+                                : 'bg-[#fff0ed]';
+
+                            $statusDotColor = $isOffline
+                                ? 'bg-[#8b9aa8]'
+                                : 'bg-[#e05252]';
+                        @endphp
+
+                        <a
+                            role="menuitem"
+                            href="{{ route('locations', ['ternak' => $animal['id']]) }}"
+                            data-notification-item
+                            data-notification-type="{{ $filterType }}"
+                            data-animal-id="{{ $animal['id'] }}"
+                            class="group flex items-start gap-3 border-b border-[#edf1f4] px-4 py-3.5 no-underline transition last:border-b-0 hover:bg-[#f8fafc]"
+                        >
+                            {{-- STATUS ICON --}}
+                            <span class="grid size-[38px] shrink-0 place-items-center rounded-[10px] {{ $statusBgColor }} {{ $statusTextColor }}">
+                                @if ($isOffline)
+                                    <x-icon name="bell" :size="19" />
+                                @elseif ($animal['type'] === 'Kambing')
+                                    <x-icon name="goat" :size="20" />
+                                @else
+                                    <x-icon name="cattle" :size="20" />
+                                @endif
+                            </span>
+
+                            {{-- NOTIFICATION DETAILS --}}
+                            <span class="min-w-0 flex-1">
+                                <span class="flex items-center justify-between gap-2">
+                                    <strong class="truncate text-[11px] font-extrabold text-navy-900">
+                                        {{ $animal['id'] }}
+                                    </strong>
+
+                                    <span class="shrink-0 text-[9px] font-medium text-muted">
+                                        {{ $animal['time'] }} WIB
+                                    </span>
                                 </span>
 
-                                <span class="min-w-0 flex-1">
-                                    <span class="flex items-center justify-between gap-2">
-                                        <strong class="truncate text-[11px] font-extrabold text-navy-900">
-                                            {{ $animal['id'] }}
-                                        </strong>
-
-                                        <span class="shrink-0 text-[9px] font-medium text-muted">
-                                            {{ $animal['time'] }} WIB
-                                        </span>
-                                    </span>
-
-                                    <span class="mt-1 block text-[10px] text-muted">
-                                        {{ $animal['type'] }} ·
-                                        <span class="font-bold text-[#e05252]">
-                                            Keluar kandang
-                                        </span>
-                                    </span>
-
-                                    <span class="mt-1.5 flex items-center gap-1 text-[9px] text-[#8493a0]">
-                                        <span class="size-1.5 rounded-full bg-[#e05252]"></span>
-                                        Terdeteksi di luar area geofence
+                                <span class="mt-1 block text-[10px] text-muted">
+                                    {{ $animal['type'] }} ·
+                                    <span class="font-bold {{ $statusTextColor }}">
+                                        {{ $statusLabel }}
                                     </span>
                                 </span>
 
-                                <span class="mt-1 shrink-0 text-[#9aa7b2] transition group-hover:translate-x-0.5 group-hover:text-orange">
-                                    <x-icon name="chevron" :size="13" class="rotate-90" />
+                                <span class="mt-1.5 flex items-center gap-1 text-[9px] text-[#8493a0]">
+                                    <span class="size-1.5 shrink-0 rounded-full {{ $statusDotColor }}"></span>
+                                    {{ $statusDescription }}
                                 </span>
-                            </a>
-                        @endforeach
-                    @else
-                        <div class="flex flex-col items-center justify-center px-5 py-10 text-center">
+                            </span>
+
+                            <span class="mt-1 shrink-0 text-[#9aa7b2] transition group-hover:translate-x-0.5 group-hover:text-orange">
+                                <x-icon name="chevron" :size="13" class="rotate-90" />
+                            </span>
+                        </a>
+                    @empty
+                        <div
+                            data-notification-empty
+                            class="flex flex-col items-center justify-center px-5 py-10 text-center"
+                        >
                             <span class="grid size-11 place-items-center rounded-full bg-[#eaf8f1] text-[#1baa68]">
                                 <x-icon name="check" :size="21" />
                             </span>
 
                             <strong class="mt-3 text-xs font-extrabold text-navy-900">
-                                Semua ternak aman
+                                Tidak ada peringatan
                             </strong>
 
                             <p class="mt-1 max-w-[220px] text-[10px] leading-4 text-muted">
-                                Saat ini tidak ada ternak yang terdeteksi berada di luar kandang.
+                                Tidak ada ternak yang keluar kandang atau perangkat yang offline.
                             </p>
                         </div>
-                    @endif
+                    @endforelse
+
+                    {{-- EMPTY STATE KHUSUS FILTER --}}
+                    <div
+                        data-notification-filter-empty
+                        hidden
+                        class="flex flex-col items-center justify-center px-5 py-8 text-center"
+                    >
+                        <strong class="text-xs font-extrabold text-navy-900">
+                            Tidak ada notifikasi
+                        </strong>
+
+                        <p class="mt-1 text-[10px] leading-4 text-muted">
+                            Tidak ada peringatan pada kategori yang dipilih.
+                        </p>
+                    </div>
                 </div>
 
+                {{-- PANEL FOOTER --}}
                 @if ($notificationCount > 0)
                     <div class="border-t border-line bg-[#fafbfc] px-4 py-2.5">
                         <a
@@ -177,7 +280,6 @@
 
         {{-- PROFILE MENU --}}
         <div class="relative" data-profile-menu>
-
             <button
                 type="button"
                 data-profile-trigger
@@ -194,6 +296,7 @@
                     <strong class="text-xs">
                         {{ $user['name'] }}
                     </strong>
+
                     <small class="mt-0.5 text-[11px] text-muted">
                         {{ $user['role'] }}
                     </small>
@@ -202,7 +305,7 @@
                 <x-icon
                     name="chevron"
                     :size="14"
-                    class="hidden rotate-90 text-muted transition group-aria-expanded:-rotate-90 md:block"
+                    class="hidden rotate-90 text-muted transition md:block"
                 />
             </button>
 
@@ -218,6 +321,7 @@
                     <strong class="text-xs">
                         {{ $user['name'] }}
                     </strong>
+
                     <small class="mt-1 truncate text-[11px] text-muted">
                         {{ $user['email'] }}
                     </small>
@@ -245,7 +349,7 @@
     </div>
 </header>
 
-{{-- HEADER DROPDOWN JAVASCRIPT --}}
+{{-- HEADER DROPDOWN DAN FILTER JAVASCRIPT --}}
 <script>
 (function () {
     if (window.__livestockHeaderMenusInitialized) {
@@ -254,7 +358,7 @@
 
     window.__livestockHeaderMenusInitialized = true;
 
-    const initHeaderMenus = function () {
+    function initHeaderMenus() {
         const notificationMenu = document.querySelector('[data-notification-menu]');
         const notificationTrigger = document.querySelector('[data-notification-trigger]');
         const notificationPanel = document.querySelector('[data-notification-panel]');
@@ -262,6 +366,10 @@
         const profileMenu = document.querySelector('[data-profile-menu]');
         const profileTrigger = document.querySelector('[data-profile-trigger]');
         const profilePanel = document.querySelector('[data-profile-panel]');
+
+        const filterButtons = document.querySelectorAll('[data-notification-filter]');
+        const notificationItems = document.querySelectorAll('[data-notification-item]');
+        const filterEmpty = document.querySelector('[data-notification-filter-empty]');
 
         function closeNotification() {
             notificationPanel?.setAttribute('hidden', '');
@@ -273,6 +381,7 @@
             profileTrigger?.setAttribute('aria-expanded', 'false');
         }
 
+        // DROPDOWN NOTIFIKASI
         notificationTrigger?.addEventListener('click', function (event) {
             event.preventDefault();
             event.stopPropagation();
@@ -286,6 +395,7 @@
             }
         });
 
+        // DROPDOWN PROFIL
         profileTrigger?.addEventListener('click', function (event) {
             event.preventDefault();
             event.stopPropagation();
@@ -299,6 +409,47 @@
             }
         });
 
+        // FILTER NOTIFIKASI
+        filterButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                const selectedFilter = button.dataset.notificationFilter;
+                let visibleCount = 0;
+
+                filterButtons.forEach(function (item) {
+                    const active = item === button;
+
+                    item.setAttribute('aria-pressed', active ? 'true' : 'false');
+
+                    item.classList.toggle('bg-white', active);
+                    item.classList.toggle('shadow-sm', active);
+                    item.classList.toggle('text-navy-900', active);
+                    item.classList.toggle('font-extrabold', active);
+
+                    if (!active) {
+                        item.classList.remove('shadow-sm');
+                        item.classList.remove('bg-white');
+                    }
+                });
+
+                notificationItems.forEach(function (item) {
+                    const shouldShow =
+                        selectedFilter === 'all' ||
+                        item.dataset.notificationType === selectedFilter;
+
+                    item.hidden = !shouldShow;
+
+                    if (shouldShow) {
+                        visibleCount++;
+                    }
+                });
+
+                if (filterEmpty) {
+                    filterEmpty.hidden = visibleCount > 0;
+                }
+            });
+        });
+
+        // KLIK DI LUAR DROPDOWN UNTUK MENUTUP
         document.addEventListener('click', function (event) {
             if (notificationMenu && !notificationMenu.contains(event.target)) {
                 closeNotification();
@@ -309,13 +460,14 @@
             }
         });
 
+        // TOMBOL ESCAPE UNTUK MENUTUP
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 closeNotification();
                 closeProfile();
             }
         });
-    };
+    }
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initHeaderMenus, { once: true });
